@@ -1,7 +1,7 @@
 { callPackage, dart }:
 
 let
-  dart_stable = dart.override { version = "2.10.0"; };
+  dart_stable = dart.override { version = "2.10.4"; };
   dart_beta = dart.override { version = "2.10.0"; };
   dart_dev = dart.override { version = "2.11.0-161.0.dev"; };
   mkFlutter = opts: callPackage (import ./flutter.nix opts) { };
@@ -13,9 +13,9 @@ in {
   stable = mkFlutter rec {
     pname = "flutter";
     channel = "stable";
-    version = "1.22.0";
+    version = "1.22.5";
     filename = "flutter_linux_${version}-${channel}.tar.xz";
-    sha256Hash = "0ryrx458ss8ryhmspcfrhjvad2pl46bxh1qk5vzwzhxiqdc79vm8";
+    sha256Hash = "1dv5kczcj9npf7xxlanmpc9ijnxa3ap46521cxn14c0i3y9295ja";
     patches = getPatches ./patches/stable;
     dart = dart_stable;
   };

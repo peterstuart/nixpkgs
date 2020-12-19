@@ -1,5 +1,5 @@
 { channel, pname, version, sha256Hash, patches, dart
-, filename ? "flutter_linux_${version}-${channel}.tar.xz"}:
+, filename ? "flutter_linux_${version}-${channel}.tar.xz" }:
 
 { bash, buildFHSUserEnv, cacert, coreutils, git, makeWrapper, runCommand, stdenv
 , fetchurl, alsaLib, dbus, expat, libpulseaudio, libuuid, libX11, libxcb
@@ -8,6 +8,10 @@
 let
   drvName = "flutter-${channel}-${version}";
   flutter = stdenv.mkDerivation {
+    outputHashMode = "recursive";
+    outputHashAlgo = "sha256";
+    outputHash = "093cln3zql95gmdw68bmkc2613ym2rbnkrb0jn9lsbjnx4gk3mr7";
+
     name = "${drvName}-unwrapped";
 
     src = fetchurl {
@@ -16,7 +20,7 @@ let
       sha256 = sha256Hash;
     };
 
-    buildInputs = [ makeWrapper git ];
+    buildInputs = [ makeWrapper dart git ];
 
     inherit patches;
 
@@ -26,29 +30,32 @@ let
     '';
 
     buildPhase = ''
-      FLUTTER_ROOT=$(pwd)
-      FLUTTER_TOOLS_DIR="$FLUTTER_ROOT/packages/flutter_tools"
-      SNAPSHOT_PATH="$FLUTTER_ROOT/bin/cache/flutter_tools.snapshot"
-      STAMP_PATH="$FLUTTER_ROOT/bin/cache/flutter_tools.stamp"
-      SCRIPT_PATH="$FLUTTER_TOOLS_DIR/bin/flutter_tools.dart"
-      DART_SDK_PATH="$FLUTTER_ROOT/bin/cache/dart-sdk"
+            FLUTTER_ROOT=$(pwd)
+            FLUTTER_TOOLS_DIR="$FLUTTER_ROOT/packages/flutter_tools"
+            SNAPSHOT_PATH="$FLUTTER_ROOT/bin/cache/flutter_tools.snapshot"
+            STAMP_PATH="$FLUTTER_ROOT/bin/cache/flutter_tools.stamp"
+            SCRIPT_PATH="$FLUTTER_TOOLS_DIR/bin/flutter_tools.dart"
 
-      DART="$DART_SDK_PATH/bin/dart"
-      PUB="$DART_SDK_PATH/bin/pub"
+            HOME=../.. # required for pub upgrade --offline, ~/.pub-cache
+                       # path is relative otherwise it's replaced by /build/flutter
 
-      HOME=../.. # required for pub upgrade --offline, ~/.pub-cache
-                 # path is relative otherwise it's replaced by /build/flutter
+            (cd "$FLUTTER_TOOLS_DIR" && pub get)
 
-      (cd "$FLUTTER_TOOLS_DIR" && "$PUB" upgrade --offline)
+            local revision="$(cd "$FLUTTER_ROOT"; git rev-parse HEAD)"
 
-      local revision="$(cd "$FLUTTER_ROOT"; git rev-parse HEAD)"
-      "$DART" --snapshot="$SNAPSHOT_PATH" --packages="$FLUTTER_TOOLS_DIR/.packages" "$SCRIPT_PATH"
-      echo "$revision" > "$STAMP_PATH"
-      echo -n "${version}" > version
+      mkdir $FLUTTER_ROOT/bin/cache
+      ls $FLUTTER_ROOT/bin
+            dart --snapshot="$SNAPSHOT_PATH" --packages="$FLUTTER_TOOLS_DIR/.packages" "$SCRIPT_PATH"
+            echo "$revision" > "$STAMP_PATH"
+            echo -n "${version}" > version
 
-      rm -rf bin/cache/{artifacts,downloads}
-      rm -f  bin/cache/*.stamp
-    '';
+            rm -rf bin/cache/{artifacts,downloads}
+            rm -f  bin/cache/*.stamp
+
+  mkdir -p $out/bin/cache/dart-sdk/
+  cp -r ${dart}/* $out/bin/cache/dart-sdk/
+
+          '';
 
     installPhase = ''
       mkdir -p $out
@@ -111,7 +118,8 @@ in runCommand drvName {
   allowSubstitutes = false;
   passthru = { unwrapped = flutter; };
   meta = with stdenv.lib; {
-    description = "Flutter is Google's SDK for building mobile, web and desktop with Dart";
+    description =
+      "Flutter is Google's SDK for building mobile, web and desktop with Dart";
     longDescription = ''
       Flutter is Google’s UI toolkit for building beautiful,
       natively compiled applications for mobile, web, and desktop from a single codebase.
@@ -119,7 +127,7 @@ in runCommand drvName {
     homepage = "https://flutter.dev";
     license = licenses.bsd3;
     platforms = [ "x86_64-linux" ];
-    maintainers = with maintainers; [ babariviere ericdallo ];
+    maintainers = with maintainers; [ babariviere ericdallo peterstuart ];
   };
 } ''
   mkdir -p $out/bin
@@ -127,7 +135,14 @@ in runCommand drvName {
   echo -n "$startScript" > $out/bin/${pname}
   chmod +x $out/bin/${pname}
 
-  mkdir -p $out/bin/cache/dart-sdk/
-  cp -r ${dart}/* $out/bin/cache/dart-sdk/
-  ln $out/bin/cache/dart-sdk/bin/dart $out/bin/dart
+echo "1"
+ls $out/bin
+
+  # mkdir -p $out/bin/cache/dart-sdk/
+  # cp -r ${dart}/* $out/bin/cache/dart-sdk/
+
+# echo "2"
+# ls $out/bin/cache/dart-sdk
+
+  # ln $out/bin/cache/dart-sdk/bin/dart $out/bin/dart
 ''
